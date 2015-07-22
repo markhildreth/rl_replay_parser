@@ -1,0 +1,48 @@
+General Notes:
+
+Integers appear to be little endian.
+
+Byte Offsets (examples from 22Cf):
+
+0-20: Data that seems to change often. Perhaps a checksum?
+21-44: "TAGame.Replay_Soccar_TA" + null terminator
+45-?: Seems to be a collection of properties, with the name, type, and value itself. For example:
+
+. .  . .  T e  a m  S i  z e  . .  . .  . I  n t  P r  o p  e r  t y  . .  . .  . .  . .  . .  . .  .
+0900 0000 5465 616d 5369 7a65 000c 0000 0049 6e74 5072 6f70 6572 7479 0004 0000 0000 0000 0001 0000 00
+ ^ Length of "TeamSize" + terminator
+                                ^ Length of "IntProperty" + terminator
+                                                                         ^ Length (stored in 8-bytes) of value size (4 bytes)
+                                                                                            ^ Team size was one                  
+
+
+There seems to be three bytes of padding which seems to always be zero.
+
+.  . .  . P  r i  m a  r y  P l  a y  e r  T e  a m  . .  . .  . I  n t  P r  o p  e r  t y  . .  . .  . .  . .  . .  . .  . 
+12 0000 0050 7269 6d61 7279 506c 6179 6572 5465 616d 000c 0000 0049 6e74 5072 6f70 6572 7479 0004 0000 0000 0000 0001 0000 00
+^ Length of "PrimaryPlayerTeam" + null terminator (0x12 = 18)
+                                                       ^ Length of "IntProperty" + terminator
+                                                                                                ^ Byte size?
+                                                                                                                   ^ Primary team was one
+
+.  . .  . T  e a  m 1  S c  o r  e .  . .  . .  I n  t P  r o  p e  r t  y .  . .  . .  . .  . .  . .  . .
+0b 0000 0054 6561 6d31 5363 6f72 6500 0c00 0000 496e 7450 726f 7065 7274 7900 0400 0000 0000 0000 0100 0000
+^ Length of "Team1Score" + null terminator
+                                      ^ Length of "IntProperty" + terminator
+                                                                              ^ Byte size (in eight bytes)
+                                                                                                   ^ Team score was 1
+                                            
+
+. .  . .  G o  a l  s .  . .  . .  A r  r a  y P  r o  p e  r t  y .  . .  . .  . .  . .  . .  . .  . .  . . 
+0600 0000 476f 616c 7300 0e00 0000 4172 7261 7950 726f 7065 7274 7900 8e00 0000 0000 0000 0100 0000 0600 0000 
+^ Length of "Goals" + terminator
+                         ^ Length of "ArrayProperty" + terminator
+                                                                      ^ 8e?
+
+
+This goes on for awhile...
+
+. .  . .  P l  a y  e r  N a  m e  . .  . .  . S  t r  P r  o p  e r  t y  . .  . .  . .  . .  . .  . .  . i  a g  o .  . .  . .  N o  n e  . 4  . .  . .  . .  ? .  . .  . . 
+0b00 0000 506c 6179 6572 4e61 6d65 000c 0000 0053 7472 5072 6f70 6572 7479 0009 0000 0000 0000 0005 0000 0069 6167 6f00 0500 0000 4e6f 6e65 0034 a201 008f 9010 3f01 0000 0017
+^ In this specific case, the padding was missing. We'll start with the size.
+^ Length of "PlayerName" + terminator

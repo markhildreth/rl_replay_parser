@@ -25,7 +25,7 @@ class ReplayParser:
 
     def _read_property(self, replay_file):
         if self.debug: print("Reading name")
-        name_length = self._read_number(replay_file, 4)
+        name_length = self._read_integer(replay_file, 4)
         property_name = self._read_string(replay_file, name_length)
         if self.debug: print("Property name: {}".format(property_name))
 
@@ -33,30 +33,30 @@ class ReplayParser:
             return None
 
         if self.debug: print("Reading type")
-        type_length = self._read_number(replay_file, 4)
+        type_length = self._read_integer(replay_file, 4)
         type_name = self._read_string(replay_file, type_length)
         if self.debug: print("Type name: {}".format(type_name))
 
         if self.debug: print("Reading value")
         if type_name == 'IntProperty':
-            value_length = self._read_number(replay_file, 8)
-            value = self._read_number(replay_file, value_length)
+            value_length = self._read_integer(replay_file, 8)
+            value = self._read_integer(replay_file, value_length)
         elif type_name == 'StrProperty':
-            unknown = self._read_number(replay_file, 8)
-            length = self._read_number(replay_file, 4)
+            unknown = self._read_integer(replay_file, 8)
+            length = self._read_integer(replay_file, 4)
             value = self._read_string(replay_file, length)
         elif type_name == 'FloatProperty':
-            length = self._read_number(replay_file, 8)
-            value = self._read_number(replay_file, length)
+            length = self._read_integer(replay_file, 8)
+            value = self._read_float(replay_file, length)
         elif type_name == 'NameProperty':
-            unknown = self._read_number(replay_file, 8)
-            length = self._read_number(replay_file, 4)
+            unknown = self._read_integer(replay_file, 8)
+            length = self._read_integer(replay_file, 4)
             value = self._read_string(replay_file, length)
         elif type_name == 'ArrayProperty':
             # I imagine that this is the length of bytes that the data
             # in the "array" actually take up in the file.
-            unknown = self._read_number(replay_file, 8)
-            array_length = self._read_number(replay_file, 4)
+            unknown = self._read_integer(replay_file, 8)
+            array_length = self._read_integer(replay_file, 4)
 
             value = [
                 self._read_properties(replay_file)
@@ -70,7 +70,7 @@ class ReplayParser:
     def _print_bytes(self, bytes_read):
         if self.debug: print('Hex read: ' + ':'.join(hex(ord(x)) for x in bytes_read))
 
-    def _read_number(self, replay_file, length):
+    def _read_integer(self, replay_file, length):
         number_format = {
             1: '<B',
             2: '<H',
@@ -80,7 +80,18 @@ class ReplayParser:
         bytes_read = replay_file.read(length)
         self._print_bytes(bytes_read)
         value = struct.unpack(number_format, bytes_read)[0]
-        if self.debug: print("Number read: {}".format(value))
+        if self.debug: print("Integer read: {}".format(value))
+        return value
+
+    def _read_float(self, replay_file, length):
+        number_format = {
+            4: '<f',
+            8: '<d'
+        }[length]
+        bytes_read = replay_file.read(length)
+        self._print_bytes(bytes_read)
+        value = struct.unpack(number_format, bytes_read)[0]
+        if self.debug: print ("Float read: {}".format(value))
         return value
 
     def _read_unknown(self, replay_file, num_bytes):

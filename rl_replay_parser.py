@@ -53,6 +53,8 @@ class ReplayParser:
             length = self._read_number(replay_file, 4)
             value = self._read_string(replay_file, length)
         elif type_name == 'ArrayProperty':
+            # I imagine that this is the length of bytes that the data
+            # in the "array" actually take up in the file.
             unknown = self._read_number(replay_file, 8)
             array_length = self._read_number(replay_file, 4)
 

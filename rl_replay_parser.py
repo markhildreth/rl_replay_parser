@@ -12,7 +12,12 @@ class ReplayParser:
         header_start = replay_file.read(24)
 
         data['header'] = self._read_properties(replay_file)
-        data['data'] = self._read_data(replay_file)
+
+        unknown = self._read_unknown(replay_file, 12)
+        map_name_length = self._read_integer(replay_file, 4)
+        map_name = self._read_string(replay_file, map_name_length)
+
+        data['key_frames'] = self._read_key_frames(replay_file)
         return data
 
     def _read_properties(self, replay_file):
@@ -69,38 +74,23 @@ class ReplayParser:
 
         return { 'name' : property_name, 'value': value}
 
-    def _read_data(self, replay_file):
-        unknown = self._read_unknown(replay_file, 12)
-        map_name_length = self._read_integer(replay_file, 4)
-        map_name = self._read_string(replay_file, map_name_length)
+    # I'm not sure if they're actually called "key frames", but it seems to be a 
+    # list of frames, along with some other number...
+    def _read_key_frames(self, replay_file):
+        number_of_key_frames = self._read_integer(replay_file, 4)
+        return [
+            self._read_key_frame(replay_file)
+            for x in range(number_of_key_frames)
+        ]
 
-        unknown_things = []
-        number_of_unknown_things = self._read_integer(replay_file, 4)
-        unknown_head = self._read_unknown(replay_file, 3)
-        for x in range(number_of_unknown_things):
-            unknown_byte = self._read_integer(replay_file, 1)
-            frame = self._read_integer(replay_file, 4)
-            unknown_number = self._read_integer(replay_file, 4)
-            unknown_bytes = self._read_unknown(replay_file, 3)
-            unknown_thing = {
-                'unknown_byte': unknown_byte,
-                'frame' : frame,
-                'unknown_number': unknown_number,
-                'unknown_bytes' : self._pretty_byte_string(unknown_bytes)
-            }
-            if self.debug:
-                print("{unknown_byte}, Frame: {frame: 8d}, ???: {unknown_number: 12d}, ???: {unknown_bytes}".format(**unknown_thing))
-            unknown_things.append(unknown_thing)
-
-        zero_byte = self._read_unknown(replay_file, 1)
-        unknown_tail = self._read_unknown(replay_file, 3)
-
-        print(self._pretty_byte_string(self._read_unknown(replay_file, 30)))
-        print("Head: {}. Tail: {}".format(self._pretty_byte_string(unknown_head), self._pretty_byte_string(unknown_tail)))
-
+    def _read_key_frame(self, replay_file):
+        time = self._read_float(replay_file, 4)
+        frame = self._read_integer(replay_file, 4)
+        unknown_number = self._read_integer(replay_file, 4)
         return {
-            'data_count': number_of_unknown_things,
-            'unknown_things' : unknown_things,
+            'time' : time,
+            'frame' : frame,
+            '???' : unknown_number
         }
 
     def _pretty_byte_string(self, bytes_read):

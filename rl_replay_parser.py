@@ -18,16 +18,6 @@ class ReplayParser:
         data['key_frames'] = self._read_key_frames(replay_file)
         return data
 
-    def _sniff_bytes(self, replay_file, size):
-        b = self._read_unknown(replay_file, size)
-        print("**** BYTES ****")
-        print("Bytes: {}".format(self._pretty_byte_string(b)))
-        if size == 2:
-            print("Short: Signed: {} Unsigned: {}".format(struct.unpack('<h', b), struct.unpack('<H', b)))
-        else:
-            print("Integer: Signed: {}, Unsigned: {}".format(struct.unpack('<i', b), struct.unpack('<I', b)))
-            print("Float: {}".format(struct.unpack('<f', b)))
-
     def _read_properties(self, replay_file):
         results = {}
 
@@ -98,7 +88,6 @@ class ReplayParser:
             self._read_key_frame(replay_file)
             for x in range(number_of_key_frames)
         ]
-        zero_byte = self._read_unknown(replay_file, 1)
         return key_frames
 
     def _read_key_frame(self, replay_file):
@@ -159,6 +148,16 @@ class ReplayParser:
         bytes_read = replay_file.read(length)[0:-1]
         if self.debug: self._print_bytes(bytes_read)
         return bytes_read
+
+    def _sniff_bytes(self, replay_file, size):
+        b = self._read_unknown(replay_file, size)
+        print("**** BYTES ****")
+        print("Bytes: {}".format(self._pretty_byte_string(b)))
+        if size == 2:
+            print("Short: Signed: {} Unsigned: {}".format(struct.unpack('<h', b), struct.unpack('<H', b)))
+        else:
+            print("Integer: Signed: {}, Unsigned: {}".format(struct.unpack('<i', b), struct.unpack('<I', b)))
+            print("Float: {}".format(struct.unpack('<f', b)))
 
 
 if __name__ == '__main__':

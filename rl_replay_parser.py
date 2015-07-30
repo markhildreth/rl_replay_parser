@@ -92,8 +92,6 @@ class ReplayParser:
 
         return map_names
 
-    # I'm not sure if they're actually called "key frames", but it seems to be a 
-    # list of frames, along with some other number...
     def _read_key_frames(self, replay_file):
         number_of_key_frames = self._read_integer(replay_file, 4)
         key_frames = [
@@ -106,11 +104,11 @@ class ReplayParser:
     def _read_key_frame(self, replay_file):
         time = self._read_float(replay_file, 4)
         frame = self._read_integer(replay_file, 4)
-        unknown_number = self._read_integer(replay_file, 4)
+        file_position = self._read_integer(replay_file, 4)
         return {
             'time' : time,
             'frame' : frame,
-            '???' : unknown_number
+            'file_position' : file_position
         }
 
     def _pretty_byte_string(self, bytes_read):

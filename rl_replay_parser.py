@@ -1,6 +1,9 @@
 import pprint
 import sys
 import struct
+import math
+
+import bitstring
 
 class ReplayParser:
     def __init__(self, debug=False):
@@ -9,13 +12,14 @@ class ReplayParser:
     def parse(self, replay_file):
         data = {}
         # TODO: CRC, version info, other stuff
-        unknown = replay_file.read(20)
-        header_start = replay_file.read(24)
+        unknown = self._read_unknown(replay_file, 20)
+        header_start = self._read_unknown(replay_file, 24)
 
         data['header'] = self._read_properties(replay_file)
         unknown = self._read_unknown(replay_file, 8)
         data['level_info'] = self._read_level_info(replay_file)
         data['key_frames'] = self._read_key_frames(replay_file)
+        data['network_frames'] = self._read_network_frames(replay_file)
         return data
 
     def _read_properties(self, replay_file):
@@ -100,54 +104,55 @@ class ReplayParser:
             'file_position' : file_position
         }
 
+    def _read_network_frames(self, replay_file):
+        number_of_network_frames = self._read_integer(replay_file, 4)
+        return [
+            self._read_network_frame(replay_file)
+        ]
+
+        return [
+            self._read_network_frame(replay_file)
+            for x in range(number_of_network_frames)
+        ]
+
+    def _read_network_frame(self, replay_file):
+        current_time = self._read_float(replay_file, 4)
+        delta_time = self._read_float(replay_file, 4)
+
+        return {
+            'current_time' : current_time,
+            'delta_time' : delta_time,
+        }
+
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)
 
     def _print_bytes(self, bytes_read):
         print('Hex read: {}'.format(self._pretty_byte_string(bytes_read)))
 
-    def _read_integer(self, replay_file, length, signed=True):
-        if signed:
-            number_format = {
-                1: '<b',
-                2: '<h',
-                4: '<i',
-                8: '<q',
-            }[length]
-        else:
-            number_format = {
-                1: '<B',
-                2: '<H',
-                4: '<I',
-                8: '<Q'
-            }[length]
+    def _read_bits(self, replay_file, length, leftover = ''):
+        source = leftover
+        bytes_to_read = int(math.ceil((length - len(leftover)) / 8.0))
+        source += ''.join('{0:08b}'.format(self._read_integer(replay_file, 1)) for x in range(bytes_to_read))
 
-        bytes_read = replay_file.read(length)
-        if self.debug: self._print_bytes(bytes_read)
-        value = struct.unpack(number_format, bytes_read)[0]
-        if self.debug: print("Integer read: {}".format(value))
-        return value
+        data, new_leftover = source[0:length], source[length:]
+        return int(data, 2), new_leftover
+
+    def _read_integer(self, replay_file, length, signed=True):
+        bits_read = replay_file.read(8 * length)
+        if signed:
+            return bits_read.intle
+        else:
+            return bits_read.uintle
 
     def _read_float(self, replay_file, length):
-        number_format = {
-            4: '<f',
-            8: '<d'
-        }[length]
-        bytes_read = replay_file.read(length)
-        if self.debug: self._print_bytes(bytes_read)
-        value = struct.unpack(number_format, bytes_read)[0]
-        if self.debug: print ("Float read: {}".format(value))
-        return value
+        return replay_file.read(8 * length).floatle
 
     def _read_unknown(self, replay_file, num_bytes):
-        bytes_read = replay_file.read(num_bytes)
-        if self.debug: self._print_bytes(bytes_read)
-        return bytes_read
+        return replay_file.read(8 * num_bytes).hex
 
     def _read_string(self, replay_file, length):
-        bytes_read = replay_file.read(length)[0:-1]
-        if self.debug: self._print_bytes(bytes_read)
-        return bytes_read
+        return replay_file.read(8 * length).bytes[:-1]
 
     def _sniff_bytes(self, replay_file, size):
         b = self._read_unknown(replay_file, size)
@@ -166,8 +171,10 @@ if __name__ == '__main__':
         sys.exit('Filename {} does not appear to be a valid replay file'.format(filename))
 
     with open(filename, 'rb') as replay_file:
-        results = ReplayParser(debug=False).parse(replay_file)
+        replay_bit_stream = bitstring.ConstBitStream(replay_file)
+        results = ReplayParser(debug=False).parse(replay_bit_stream)
         try:
             pprint.pprint(results)
+            print('')
         except IOError as e:
             pass

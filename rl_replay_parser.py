@@ -23,6 +23,7 @@ class ReplayParser:
         replay_file.bytepos = 95506
         data['debug_logs'] = self._read_debug_logs(replay_file)
         data['goal_frame_info'] = self._read_goal_frame_infos(replay_file)
+        data['packages'] = self._read_packages(replay_file)
 
         return data
 
@@ -142,6 +143,17 @@ class ReplayParser:
             'type' : type_name,
             'frame_number': frame_number,
         }
+
+    def _read_packages(self, replay_file):
+        number_of_packages = replay_file.read('uintle:32')
+        return [
+            self._read_package(replay_file)
+            for x in range(number_of_packages)
+        ]
+
+    def _read_package(self, replay_file):
+        package_length = replay_file.read('uintle:32')
+        return self._read_string(replay_file, package_length)
 
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)

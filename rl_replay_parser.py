@@ -24,6 +24,7 @@ class ReplayParser:
         data['debug_logs'] = self._read_debug_logs(replay_file)
         data['goal_frame_info'] = self._read_goal_frame_infos(replay_file)
         data['packages'] = self._read_packages(replay_file)
+        data['read_objects'] = self._read_objects(replay_file)
 
         return data
 
@@ -154,6 +155,17 @@ class ReplayParser:
     def _read_package(self, replay_file):
         package_length = replay_file.read('uintle:32')
         return self._read_string(replay_file, package_length)
+
+    def _read_objects(self, replay_file):
+        number_of_objects = replay_file.read('uintle:32')
+        return [
+            self._read_object(replay_file)
+            for x in range(number_of_objects)
+        ]
+
+    def _read_object(self, replay_file):
+        object_length = replay_file.read('uintle:32')
+        return self._read_string(replay_file, object_length)
 
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)

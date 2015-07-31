@@ -12,14 +12,18 @@ class ReplayParser:
     def parse(self, replay_file):
         data = {}
         # TODO: CRC, version info, other stuff
-        unknown = self._read_unknown(replay_file, 20)
-        header_start = self._read_unknown(replay_file, 24)
+        #unknown = self._read_unknown(replay_file, 20)
+        #header_start = self._read_unknown(replay_file, 24)
 
-        data['header'] = self._read_properties(replay_file)
-        unknown = self._read_unknown(replay_file, 8)
-        data['level_info'] = self._read_level_info(replay_file)
-        data['key_frames'] = self._read_key_frames(replay_file)
-        data['network_frames'] = self._read_network_frames(replay_file)
+        #data['header'] = self._read_properties(replay_file)
+        #unknown = self._read_unknown(replay_file, 8)
+        #data['level_info'] = self._read_level_info(replay_file)
+        #data['key_frames'] = self._read_key_frames(replay_file)
+        #data['network_frames'] = self._read_network_frames(replay_file)
+        replay_file.bytepos = 95506
+        data['debug_logs'] = self._read_debug_logs(replay_file)
+        data['goal_frame_info'] = self._read_goal_frame_infos(replay_file)
+
         return data
 
     def _read_properties(self, replay_file):
@@ -104,24 +108,39 @@ class ReplayParser:
             'file_position' : file_position
         }
 
-    def _read_network_frames(self, replay_file):
-        number_of_network_frames = self._read_integer(replay_file, 4)
+    def _read_debug_logs(self, replay_file):
+        log_size = replay_file.read('uintle:32')
         return [
-            self._read_network_frame(replay_file)
+            self._read_debug_log(replay_file)
+            for x in range(log_size)
         ]
 
-        return [
-            self._read_network_frame(replay_file)
-            for x in range(number_of_network_frames)
-        ]
-
-    def _read_network_frame(self, replay_file):
-        current_time = self._read_float(replay_file, 4)
-        delta_time = self._read_float(replay_file, 4)
-
+    def _read_debug_log(self, replay_file):
+        unknown = replay_file.read('hex:32')
+        name_length = replay_file.read('uintle:32')
+        name = self._read_string(replay_file, name_length)
+        msg_length = replay_file.read('uintle:32')
+        msg = self._read_string(replay_file, msg_length)
         return {
-            'current_time' : current_time,
-            'delta_time' : delta_time,
+            '???': unknown,
+            'name' : name,
+            'message' : msg
+        }
+
+    def _read_goal_frame_infos(self, replay_file):
+        number_goal_frame_infos = replay_file.read('uintle:32')
+        return [
+            self._read_goal_frame_info(replay_file)
+            for x in range(number_goal_frame_infos)
+        ]
+
+    def _read_goal_frame_info(self, replay_file):
+        type_length = replay_file.read('uintle:32')
+        type_name = self._read_string(replay_file, type_length)
+        frame_number = replay_file.read('uintle:32')
+        return {
+            'type' : type_name,
+            'frame_number': frame_number,
         }
 
     def _pretty_byte_string(self, bytes_read):
@@ -129,14 +148,6 @@ class ReplayParser:
 
     def _print_bytes(self, bytes_read):
         print('Hex read: {}'.format(self._pretty_byte_string(bytes_read)))
-
-    def _read_bits(self, replay_file, length, leftover = ''):
-        source = leftover
-        bytes_to_read = int(math.ceil((length - len(leftover)) / 8.0))
-        source += ''.join('{0:08b}'.format(self._read_integer(replay_file, 1)) for x in range(bytes_to_read))
-
-        data, new_leftover = source[0:length], source[length:]
-        return int(data, 2), new_leftover
 
     def _read_integer(self, replay_file, length, signed=True):
         bits_read = replay_file.read(8 * length)
@@ -154,16 +165,17 @@ class ReplayParser:
     def _read_string(self, replay_file, length):
         return replay_file.read(8 * length).bytes[:-1]
 
-    def _sniff_bytes(self, replay_file, size):
-        b = self._read_unknown(replay_file, size)
-        print("**** BYTES ****")
-        print("Bytes: {}".format(self._pretty_byte_string(b)))
-        if size == 2:
-            print("Short: Signed: {} Unsigned: {}".format(struct.unpack('<h', b), struct.unpack('<H', b)))
-        else:
-            print("Integer: Signed: {}, Unsigned: {}".format(struct.unpack('<i', b), struct.unpack('<I', b)))
-            print("Float: {}".format(struct.unpack('<f', b)))
-
+    def _sniff_bits(self, replay_file, size):
+        print('****** Sniff Results *******')
+        b = replay_file.read(size)
+        print("Binary: {}".format(b.bin))
+        if size % 4 == 0:
+            print("Hex: {}".format(b.hex))
+        if size >= 8:
+            print("Int: {}".format(b.int))
+            print("Uint: {}".format(b.uint))
+        if size in [32, 64]:
+            print("Float: {}".format(b.floatle))
 
 if __name__ == '__main__':
     filename = sys.argv[1]

@@ -5,15 +5,19 @@ import math
 
 import bitstring
 
+UINT32 = 'uintle:32'
+UINT64 = 'uintle:64'
+FLOAT32 = 'floatle:32'
+
 class ReplayParser:
     def parse(self, replay_file):
         data = {}
         # TODO: CRC, version info, other stuff
-        crc = self._read_unknown(replay_file, 20)
-        header_start = self._read_unknown(replay_file, 24)
+        crc = replay_file.read('bytes:20')
+        header_start = replay_file.read('bytes:24')
 
         data['header'] = self._read_properties(replay_file)
-        unknown = self._read_unknown(replay_file, 8)
+        unknown = replay_file.read('bytes:8')
         data['level_info'] = self._read_level_info(replay_file)
         data['key_frames'] = self._read_key_frames(replay_file)
         data['network_frames'] = self._read_network_frames(replay_file)
@@ -38,54 +42,48 @@ class ReplayParser:
                 return results
 
     def _read_property(self, replay_file):
-        name_length = self._read_integer(replay_file, 4)
+        name_length = replay_file.read(UINT32)
         property_name = self._read_string(replay_file, name_length)
 
         if property_name == 'None':
             return None
 
-        type_length = self._read_integer(replay_file, 4)
+        type_length = replay_file.read(UINT32)
         type_name = self._read_string(replay_file, type_length)
+        length_of_data = replay_file.read(UINT64)
 
         if type_name == 'IntProperty':
-            value_length = self._read_integer(replay_file, 8)
-            value = self._read_integer(replay_file, value_length)
+            value = replay_file.read(UINT32)
         elif type_name == 'StrProperty':
-            unknown = self._read_integer(replay_file, 8)
-            length = self._read_integer(replay_file, 4)
+            length = replay_file.read(UINT32)
             value = self._read_string(replay_file, length)
         elif type_name == 'FloatProperty':
-            length = self._read_integer(replay_file, 8)
-            value = self._read_float(replay_file, length)
+            value = replay_file.read(FLOAT32)
         elif type_name == 'NameProperty':
-            unknown = self._read_integer(replay_file, 8)
-            length = self._read_integer(replay_file, 4)
+            length = replay_file.read(UINT32)
             value = self._read_string(replay_file, length)
         elif type_name == 'ArrayProperty':
-            # I imagine that this is the length of bytes that the data
-            # in the "array" actually take up in the file.
-            unknown = self._read_integer(replay_file, 8)
-            array_length = self._read_integer(replay_file, 4)
-
+            array_length = replay_file.read(UINT32)
             value = [
                 self._read_properties(replay_file)
                 for x in range(array_length)
             ]
 
+        print('{}: {}'.format(property_name, value))
         return { 'name' : property_name, 'value': value}
 
     def _read_level_info(self, replay_file):
         map_names = []
-        number_of_maps = self._read_integer(replay_file, 4)
+        number_of_maps = replay_file.read(UINT32)
         for x in range(number_of_maps):
-            map_name_length = self._read_integer(replay_file, 4)
+            map_name_length = replay_file.read(UINT32)
             map_name = self._read_string(replay_file, map_name_length)
             map_names.append(map_name)
 
         return map_names
 
     def _read_key_frames(self, replay_file):
-        number_of_key_frames = self._read_integer(replay_file, 4)
+        number_of_key_frames = replay_file.read(UINT32)
         key_frames = [
             self._read_key_frame(replay_file)
             for x in range(number_of_key_frames)
@@ -93,9 +91,9 @@ class ReplayParser:
         return key_frames
 
     def _read_key_frame(self, replay_file):
-        time = self._read_float(replay_file, 4)
-        frame = self._read_integer(replay_file, 4)
-        file_position = self._read_integer(replay_file, 4)
+        time = replay_file.read(FLOAT32)
+        frame = replay_file.read(UINT32)
+        file_position = replay_file.read(UINT32)
         return {
             'time' : time,
             'frame' : frame,
@@ -103,22 +101,22 @@ class ReplayParser:
         }
 
     def _read_network_frames(self, replay_file):
-        stream_byte_length = replay_file.read('uintle:32')
+        stream_byte_length = replay_file.read(UINT32)
         # TODO: Figure this out at a later time
         replay_file.bytepos += stream_byte_length
 
     def _read_debug_logs(self, replay_file):
-        log_size = replay_file.read('uintle:32')
+        log_size = replay_file.read(UINT32)
         return [
             self._read_debug_log(replay_file)
             for x in range(log_size)
         ]
 
     def _read_debug_log(self, replay_file):
-        frame = replay_file.read('uintle:32')
-        name_length = replay_file.read('uintle:32')
+        frame = replay_file.read(UINT32)
+        name_length = replay_file.read(UINT32)
         name = self._read_string(replay_file, name_length)
-        msg_length = replay_file.read('uintle:32')
+        msg_length = replay_file.read(UINT32)
         msg = self._read_string(replay_file, msg_length)
         return {
             'frame': frame,
@@ -127,69 +125,69 @@ class ReplayParser:
         }
 
     def _read_goal_frame_infos(self, replay_file):
-        number_goal_frame_infos = replay_file.read('uintle:32')
+        number_goal_frame_infos = replay_file.read(UINT32)
         return [
             self._read_goal_frame_info(replay_file)
             for x in range(number_goal_frame_infos)
         ]
 
     def _read_goal_frame_info(self, replay_file):
-        type_length = replay_file.read('uintle:32')
+        type_length = replay_file.read(UINT32)
         type_name = self._read_string(replay_file, type_length)
-        frame_number = replay_file.read('uintle:32')
+        frame_number = replay_file.read(UINT32)
         return {
             'type' : type_name,
             'frame_number': frame_number,
         }
 
     def _read_packages(self, replay_file):
-        number_of_packages = replay_file.read('uintle:32')
+        number_of_packages = replay_file.read(UINT32)
         return [
             self._read_package(replay_file)
             for x in range(number_of_packages)
         ]
 
     def _read_package(self, replay_file):
-        package_length = replay_file.read('uintle:32')
+        package_length = replay_file.read(UINT32)
         return self._read_string(replay_file, package_length)
 
     def _read_objects(self, replay_file):
-        number_of_objects = replay_file.read('uintle:32')
+        number_of_objects = replay_file.read(UINT32)
         return [
             self._read_object(replay_file)
             for x in range(number_of_objects)
         ]
 
     def _read_object(self, replay_file):
-        object_length = replay_file.read('uintle:32')
+        object_length = replay_file.read(UINT32)
         return self._read_string(replay_file, object_length)
 
     def _read_names(self, replay_file):
-        number_of_names = replay_file.read('uintle:32')
+        number_of_names = replay_file.read(UINT32)
         return [
             self._read_name(replay_file)
             for x in range(number_of_names)
         ]
 
     def _read_name(self, replay_file):
-        name_length = replay_file.read('uintle:32')
+        name_length = replay_file.read(UINT32)
         return self._read_string(replay_file, name_length)
 
     def _read_class_index(self, replay_file):
-        number_of_classes = replay_file.read('uintle:32')
+        number_of_classes = replay_file.read(UINT32)
         return dict(
             self._read_class_index_item(replay_file)
             for x in range(number_of_classes)
         )
 
     def _read_class_index_item(self, replay_file):
-        class_name_size = replay_file.read('uintle:32')
+        class_name_size = replay_file.read(UINT32)
         class_name = self._read_string(replay_file, class_name_size)
-        class_id = replay_file.read('uintle:32')
+        class_id = replay_file.read(UINT32)
         return (class_id, class_name)
 
     def _read_class_net_cache(self, replay_file):
-        array_length = replay_file.read('uintle:32')
+        array_length = replay_file.read(UINT32)
         return dict(
             self._read_class_net_cache_item(replay_file)
             for x in range(array_length)
@@ -197,12 +195,12 @@ class ReplayParser:
 
     def _read_class_net_cache_item(self, replay_file):
         # Corresponds to the 'id' value in the class index.
-        class_id = replay_file.read('uintle:32')
+        class_id = replay_file.read(UINT32)
         # start/end represent range of the corresponding property elements in the
         # 'objects' array.
-        class_index_start = replay_file.read('uintle:32')
-        class_index_end = replay_file.read('uintle:32')
-        length = replay_file.read('uintle:32')
+        class_index_start = replay_file.read(UINT32)
+        class_index_end = replay_file.read(UINT32)
+        length = replay_file.read(UINT32)
         data = {
             'class_index_start': class_index_start,
             'class_index_end': class_index_end,
@@ -214,8 +212,8 @@ class ReplayParser:
         return (class_id, data)
 
     def _read_class_net_cache_item_property_map(self, replay_file):
-        property_index = replay_file.read('uintle:32')
-        property_mapped_id = replay_file.read('uintle:32')
+        property_index = replay_file.read(UINT32)
+        property_mapped_id = replay_file.read(UINT32)
         return (property_mapped_id, property_index)
 
     def _pretty_byte_string(self, bytes_read):
@@ -223,19 +221,6 @@ class ReplayParser:
 
     def _print_bytes(self, bytes_read):
         print('Hex read: {}'.format(self._pretty_byte_string(bytes_read)))
-
-    def _read_integer(self, replay_file, length, signed=True):
-        bits_read = replay_file.read(8 * length)
-        if signed:
-            return bits_read.intle
-        else:
-            return bits_read.uintle
-
-    def _read_float(self, replay_file, length):
-        return replay_file.read(8 * length).floatle
-
-    def _read_unknown(self, replay_file, num_bytes):
-        return replay_file.read(8 * num_bytes).hex
 
     def _read_string(self, replay_file, length):
         # NOTE(mhildreth): Strip off the final byte, since it will be a zero (null terminator)

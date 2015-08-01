@@ -6,9 +6,6 @@ import math
 import bitstring
 
 class ReplayParser:
-    def __init__(self, debug=False):
-        self.debug = debug
-
     def parse(self, replay_file):
         data = {}
         # TODO: CRC, version info, other stuff
@@ -41,20 +38,15 @@ class ReplayParser:
                 return results
 
     def _read_property(self, replay_file):
-        if self.debug: print("Reading name")
         name_length = self._read_integer(replay_file, 4)
         property_name = self._read_string(replay_file, name_length)
-        if self.debug: print("Property name: {}".format(property_name))
 
         if property_name == 'None':
             return None
 
-        if self.debug: print("Reading type")
         type_length = self._read_integer(replay_file, 4)
         type_name = self._read_string(replay_file, type_length)
-        if self.debug: print("Type name: {}".format(type_name))
 
-        if self.debug: print("Reading value")
         if type_name == 'IntProperty':
             value_length = self._read_integer(replay_file, 8)
             value = self._read_integer(replay_file, value_length)
@@ -79,8 +71,6 @@ class ReplayParser:
                 self._read_properties(replay_file)
                 for x in range(array_length)
             ]
-
-        if self.debug: print("Value: {}".format(value))
 
         return { 'name' : property_name, 'value': value}
 
@@ -269,7 +259,7 @@ if __name__ == '__main__':
 
     with open(filename, 'rb') as replay_file:
         replay_bit_stream = bitstring.ConstBitStream(replay_file)
-        results = ReplayParser(debug=False).parse(replay_bit_stream)
+        results = ReplayParser().parse(replay_bit_stream)
         try:
             pprint.pprint(results)
         except IOError as e:

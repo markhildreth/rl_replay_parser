@@ -27,7 +27,6 @@ class ReplayParser:
         data['names'] = self._read_names(replay_file)
         data['class_index'] = self._read_class_index(replay_file)
         data['class_net_cache'] = self._read_class_net_cache(replay_file)
-        #self._sniff_bits(replay_file, 100000)
 
         return data
 
@@ -204,15 +203,37 @@ class ReplayParser:
 
     def _read_class_net_cache(self, replay_file):
         array_length = replay_file.read('uintle:32')
-        print("The length is {}".format(array_length))
-        self._sniff_bits(replay_file, 100000)
         return [
             self._read_class_net_cache_item(replay_file)
             for x in range(array_length)
         ]
 
     def _read_class_net_cache_item(self, replay_file):
+        # Corresponds to the 'id' value in the class index.
+        class_id = replay_file.read('uintle:32')
+        # start/end represent range of the corresponding property elements in the
+        # 'objects' array.
+        class_index_start = replay_file.read('uintle:32')
+        class_index_end = replay_file.read('uintle:32')
         length = replay_file.read('uintle:32')
+        return {
+            'class_id': class_id,
+            'class_index_start' : class_index_start,
+            'class_index_end' : class_index_end,
+            'properties' : [
+                self._read_class_net_cache_item_property_map(replay_file)
+                for x in range(length)
+            ]
+        }
+
+    def _read_class_net_cache_item_property_map(self, replay_file):
+        property_index = replay_file.read('uintle:32')
+        property_mapped_id = replay_file.read('uintle:32')
+        return {
+            'index': property_index,
+            'id' : property_mapped_id,
+        }
+
 
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)
@@ -258,6 +279,5 @@ if __name__ == '__main__':
         results = ReplayParser(debug=False).parse(replay_bit_stream)
         try:
             pprint.pprint(results)
-            print("Total Objects: {}".format(len(results["objects"])))
         except IOError as e:
             pass

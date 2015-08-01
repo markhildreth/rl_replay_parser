@@ -238,6 +238,7 @@ class ReplayParser:
         return replay_file.read(8 * num_bytes).hex
 
     def _read_string(self, replay_file, length):
+        # NOTE(mhildreth): Strip off the final byte, since it will be a zero (null terminator)
         return replay_file.read(8 * length).bytes[:-1]
 
     def _sniff_bits(self, replay_file, size):

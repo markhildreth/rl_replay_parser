@@ -187,19 +187,16 @@ class ReplayParser:
 
     def _read_class_index(self, replay_file):
         number_of_classes = replay_file.read('uintle:32')
-        return [
+        return dict(
             self._read_class_index_item(replay_file)
             for x in range(number_of_classes)
-        ]
+        )
 
     def _read_class_index_item(self, replay_file):
         class_name_size = replay_file.read('uintle:32')
         class_name = self._read_string(replay_file, class_name_size)
         class_id = replay_file.read('uintle:32')
-        return {
-            'class_name': class_name,
-            'id' : class_id,
-        }
+        return (class_id, class_name)
 
     def _read_class_net_cache(self, replay_file):
         array_length = replay_file.read('uintle:32')

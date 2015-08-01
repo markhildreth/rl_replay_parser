@@ -12,21 +12,22 @@ class ReplayParser:
     def parse(self, replay_file):
         data = {}
         # TODO: CRC, version info, other stuff
-        #unknown = self._read_unknown(replay_file, 20)
-        #header_start = self._read_unknown(replay_file, 24)
+        crc = self._read_unknown(replay_file, 20)
+        header_start = self._read_unknown(replay_file, 24)
 
-        #data['header'] = self._read_properties(replay_file)
-        #unknown = self._read_unknown(replay_file, 8)
-        #data['level_info'] = self._read_level_info(replay_file)
-        #data['key_frames'] = self._read_key_frames(replay_file)
-        #data['network_frames'] = self._read_network_frames(replay_file)
-        replay_file.bytepos = 95506
+        data['header'] = self._read_properties(replay_file)
+        unknown = self._read_unknown(replay_file, 8)
+        data['level_info'] = self._read_level_info(replay_file)
+        data['key_frames'] = self._read_key_frames(replay_file)
+        data['network_frames'] = self._read_network_frames(replay_file)
         data['debug_logs'] = self._read_debug_logs(replay_file)
         data['goal_frame_info'] = self._read_goal_frame_infos(replay_file)
         data['packages'] = self._read_packages(replay_file)
         data['objects'] = self._read_objects(replay_file)
         data['names'] = self._read_names(replay_file)
         data['class_index'] = self._read_class_index(replay_file)
+        data['class_net_cache'] = self._read_class_net_cache(replay_file)
+        #self._sniff_bits(replay_file, 100000)
 
         return data
 
@@ -112,6 +113,11 @@ class ReplayParser:
             'file_position' : file_position
         }
 
+    def _read_network_frames(self, replay_file):
+        stream_byte_length = replay_file.read('uintle:32')
+        # TODO: Figure this out at a later time
+        replay_file.bytepos += stream_byte_length
+
     def _read_debug_logs(self, replay_file):
         log_size = replay_file.read('uintle:32')
         return [
@@ -120,13 +126,13 @@ class ReplayParser:
         ]
 
     def _read_debug_log(self, replay_file):
-        unknown = replay_file.read('hex:32')
+        frame = replay_file.read('uintle:32')
         name_length = replay_file.read('uintle:32')
         name = self._read_string(replay_file, name_length)
         msg_length = replay_file.read('uintle:32')
         msg = self._read_string(replay_file, msg_length)
         return {
-            '???': unknown,
+            'frame': frame,
             'name' : name,
             'message' : msg
         }
@@ -196,6 +202,17 @@ class ReplayParser:
             'id' : class_id,
         }
 
+    def _read_class_net_cache(self, replay_file):
+        array_length = replay_file.read('uintle:32')
+        print("The length is {}".format(array_length))
+        self._sniff_bits(replay_file, 100000)
+        return [
+            self._read_class_net_cache_item(replay_file)
+            for x in range(array_length)
+        ]
+
+    def _read_class_net_cache_item(self, replay_file):
+        length = replay_file.read('uintle:32')
 
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)
@@ -226,8 +243,8 @@ class ReplayParser:
         if size % 4 == 0:
             print("Hex: {}".format(b.hex))
         if size >= 8:
-            print("Int: {}".format(b.int))
-            print("Uint: {}".format(b.uint))
+            print("Int: {}".format(b.intle))
+            print("Uint: {}".format(b.uintle))
         if size in [32, 64]:
             print("Float: {}".format(b.floatle))
 
@@ -241,6 +258,6 @@ if __name__ == '__main__':
         results = ReplayParser(debug=False).parse(replay_bit_stream)
         try:
             pprint.pprint(results)
-            print('')
+            print("Total Objects: {}".format(len(results["objects"])))
         except IOError as e:
             pass

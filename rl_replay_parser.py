@@ -200,10 +200,10 @@ class ReplayParser:
 
     def _read_class_net_cache(self, replay_file):
         array_length = replay_file.read('uintle:32')
-        return [
+        return dict(
             self._read_class_net_cache_item(replay_file)
             for x in range(array_length)
-        ]
+        )
 
     def _read_class_net_cache_item(self, replay_file):
         # Corresponds to the 'id' value in the class index.
@@ -213,24 +213,20 @@ class ReplayParser:
         class_index_start = replay_file.read('uintle:32')
         class_index_end = replay_file.read('uintle:32')
         length = replay_file.read('uintle:32')
-        return {
-            'class_id': class_id,
-            'class_index_start' : class_index_start,
-            'class_index_end' : class_index_end,
-            'properties' : [
+        data = {
+            'class_index_start': class_index_start,
+            'class_index_end': class_index_end,
+            'properties' : dict(
                 self._read_class_net_cache_item_property_map(replay_file)
                 for x in range(length)
-            ]
+            )
         }
+        return (class_id, data)
 
     def _read_class_net_cache_item_property_map(self, replay_file):
         property_index = replay_file.read('uintle:32')
         property_mapped_id = replay_file.read('uintle:32')
-        return {
-            'index': property_index,
-            'id' : property_mapped_id,
-        }
-
+        return (property_mapped_id, property_index)
 
     def _pretty_byte_string(self, bytes_read):
         return ':'.join(format(ord(x), '#04x') for x in bytes_read)

@@ -5,9 +5,32 @@ import math
 
 import bitstring
 
+BOOL = 'bool'
 UINT32 = 'uintle:32'
 UINT64 = 'uintle:64'
 FLOAT32 = 'floatle:32'
+
+class ReverseBitReader(object):
+    def __init__(self, stream):
+        self.stream = stream
+        self.latest_chunk = bitstring.BitArray('')
+
+    def read(self, size, reverse=False):
+        missing_bits = max(0, size - self.latest_chunk.length)
+        missing_bytes = int(math.ceil(missing_bits / 8.0))
+
+        for x in range(missing_bytes):
+            next_byte = bitstring.BitArray(self.stream.read(8))
+            next_byte.reverse()
+            self.latest_chunk.append(next_byte)
+
+        chunk = self.latest_chunk[0:size]
+        del self.latest_chunk[0:size]
+
+        if reverse:
+            chunk.reverse()
+
+        return chunk
 
 class ReplayParser:
     def parse(self, replay_file):
@@ -101,9 +124,150 @@ class ReplayParser:
         }
 
     def _read_network_frames(self, replay_file):
+        start_byte_pos = replay_file.bytepos
+        start_pos = replay_file.pos
+        print("Network stream start (bytes): {}".format(start_byte_pos))
+        print("Network stream start (bits): {}".format(start_pos))
         stream_byte_length = replay_file.read(UINT32)
+        start_byte_pos = replay_file.bytepos
+
+        self._read_network_frame(replay_file)
+        #self._read_network_frame(replay_file)
+        #start_pos = replay_file.pos
+        #print("Network stream start (bytes): {}".format(start_byte_pos))
+        #print("Network stream start (bits): {}".format(start_pos))
+        #print("Network stream length (bytes): {}".format(stream_byte_length))
+        #self._find_candidate_frame_starts(replay_file)
+
+        #replay_file.pos += 175479
+        #self._find_candidate_value(replay_file, 'uint:6', [32, 36])
+        #self._find_candidate_vectors(replay_file)
+
+        #replay_file.pos += 4480
+        #self._read_network_frame(replay_file)
+        #for x in range(100):
+        #    self._read_network_frame(replay_file)
+        #self._read_network_frame(replay_file)
+
         # TODO: Figure this out at a later time
-        replay_file.bytepos += stream_byte_length
+        replay_file.bytepos = start_byte_pos + stream_byte_length
+
+    def _read_network_frame(self, replay_file):
+        current_time = replay_file.read(FLOAT32)
+        delta_time = replay_file.read(FLOAT32)
+        print("Current time: {}".format(current_time))
+        print("Delta time: {}".format(delta_time))
+
+        reverse_reader = ReverseBitReader(replay_file)
+
+        actors = []
+
+        while True:
+            another_actor = reverse_reader.read(1).bool
+            print("Another actor?: {}".format(another_actor))
+
+            if not another_actor:
+                break
+
+            self._read_network_frame_actor(reverse_reader)
+            print("")
+
+    def _read_network_frame_actor(self, reverse_reader):
+        actor_id = reverse_reader.read(10, reverse=True).uint
+        print("Actor ID: {}".format(actor_id))
+
+        channel_open = reverse_reader.read(1).bool
+        print("Channel Open: {}".format(channel_open))
+        new_actor = reverse_reader.read(1).bool
+        print("New Actor: {}".format(new_actor))
+
+        if new_actor:
+            self._read_network_frame_actor_new(actor_id, reverse_reader)
+        else:
+            #print(reverse_reader.read(1000).bin)
+            self._read_network_frame_actor_existing(actor_id, reverse_reader)
+
+    def _read_network_frame_actor_new(self, actor_id, reverse_reader):
+        unknown = reverse_reader.read(1).bool
+        print("Unknown Bit: {}".format(unknown))
+
+        type_id = reverse_reader.read(8, reverse=True).uint
+        print("Type ID: {}".format(type_id))
+
+        zeros = reverse_reader.read(24)
+        print("Zeros bits ({}): {}".format(zeros.length, zeros.bin))
+
+        if type_id in [44, 68, 79, 80, 180]:
+            vector = self._read_vector(reverse_reader, 5)
+            print("Vector: {}".format(vector))
+        elif type_id in [124, 189, 201, 203, 205, 208, 212]:
+            vector = self._read_vector(reverse_reader, 4)
+            print("Vector: {}".format(vector))
+
+        if type_id in [124, 189]:
+            rotator = self._read_rotator(reverse_reader)
+            print("Rotator: {}".format(rotator))
+
+    def _read_vector(self, reverse_reader, size):
+        length = reverse_reader.read(size, reverse=True).uint + 2
+        x = reverse_reader.read(length, reverse=True).uint
+        y = reverse_reader.read(length, reverse=True).uint
+        z = reverse_reader.read(length, reverse=True).uint
+        return (x, y, z)
+
+    def _read_rotator(self, reverse_reader):
+        x = self._read_rotator_component(reverse_reader)
+        y = self._read_rotator_component(reverse_reader)
+        z = self._read_rotator_component(reverse_reader)
+        return (x, y, z)
+
+    def _read_rotator_component(self, reverse_reader):
+        has_component = reverse_reader.read(1).bool
+        if has_component:
+            return reverse_reader.read(8, reverse=True).uint
+        else:
+            return 0
+
+    def _read_network_frame_actor_existing(self, actor_id, reverse_reader):
+        print("Unknown bits: {}".format(reverse_reader.read(300).bin))
+
+    def _parse_vector(self, replay_file):
+        bits_per_component = replay_file.read('uint:4')
+        x, y, z = replay_file.readlist(['uint:{}'.format(bits_per_component)] * 3)
+        return (x, y, z)
+
+
+    def _find_candidate_frame_starts(self, replay_file):
+        start_pos = replay_file.pos
+        for x in range(0, 200000):
+            replay_file.pos = start_pos + x
+            current = replay_file.read(FLOAT32)
+            delta = replay_file.read(FLOAT32)
+            if 0.001 <= current <= 50 and 0.01 <= delta <= 0.4:
+                print("************** Candidate Frame *****************")
+                print("Found at {}: {} with delta {}".format(x, current, delta))
+                next_bits = replay_file.read(64).bin
+                print("Next Bits: {}".format(next_bits))
+
+        #pprint.pprint([x for x in sorted(found)])
+
+    def _find_candidate_vectors(self, replay_file):
+        start_pos = replay_file.pos
+
+        for offset in range(0, 10000):
+            replay_file.pos = start_pos + offset
+            bits_per_component = replay_file.read('uint:4')
+            if 0 < bits_per_component <= 10:
+                x, y, z = replay_file.readlist(['uint:{}'.format(bits_per_component)]* 3)
+                print("Found at {}: ({}, {}, {}) w/ {} bits each".format(offset, x, y, z, bits_per_component))
+
+    def _find_candidate_value(self, replay_file, value_type, values):
+        start_pos = replay_file.pos
+        for x in range(0, 10000):
+            replay_file.pos = start_pos + x
+            actual = replay_file.read(value_type)
+            if actual in values:
+                print("Found {} at offset {}".format(actual, x))
 
     def _read_debug_logs(self, replay_file):
         log_size = replay_file.read(UINT32)
@@ -232,7 +396,7 @@ class ReplayParser:
         print("Binary: {}".format(b.bin))
         if size % 4 == 0:
             print("Hex: {}".format(b.hex))
-        if size >= 8:
+        if size % 8 == 0:
             print("Int: {}".format(b.intle))
             print("Uint: {}".format(b.uintle))
         if size in [32, 64]:
@@ -248,5 +412,11 @@ if __name__ == '__main__':
         results = ReplayParser().parse(replay_bit_stream)
         try:
             pprint.pprint(results)
+            pprint.pprint([x for x in enumerate(results['objects'])])
+            for cache_key, cache_value in results['class_net_cache'].items():
+                print("Type {} ({})".format(cache_key, results['objects'][cache_key]))
+                properties = cache_value.get('properties', {})
+                for prop_net_id, object_id in properties.items():
+                    print("\t{} -> {} ({})".format(prop_net_id, object_id, results['objects'][object_id]))
         except IOError as e:
             pass

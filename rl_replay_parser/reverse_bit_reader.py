@@ -1,3 +1,5 @@
+import math
+
 import bitstring
 
 class ReverseBitReader(object):

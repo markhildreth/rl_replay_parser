@@ -86,8 +86,6 @@ for boost in boosts:
         'TAGame.VehiclePickup_TA',
     ]
 
-    
-
 def build_class_name_lookup(objects):
     object_name_lookup = {name: name_id for name_id, name in enumerate(objects)}
 

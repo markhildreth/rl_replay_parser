@@ -27,6 +27,12 @@ class NetworkStreamParser(object):
             'ProjectX.GRI_X:ReplicatedGamePlaylist': lambda reader: self._read_bits(reader, 32),
             'TAGame.Vehicle_TA:ReplicatedThrottle': lambda reader: self._read_bits(reader, 8),
             'TAGame.VehiclePickup_TA:ReplicatedPickupData': lambda reader: self._read_bits(reader, 34),
+            'TAGame.Vehicle_TA:bDriving': lambda reader: self._read_bits(reader, 1),
+            'TAGame.GameEvent_Soccar_TA:SecondsRemaining': lambda reader: self._read_bits(reader, 32),
+            'TAGame.CarComponent_TA:ReplicatedActive': lambda reader: self._read_bits(reader, 8),
+            'TAGame.PRI_TA:MatchScore': lambda reader: self._read_bits(reader, 32),
+            'TAGame.PRI_TA:MatchShots': lambda reader: self._read_bits(reader, 32),
+            'TAGame.Ball_TA:HitTeamNum': lambda reader: self._read_bits(reader, 8),
         }
 
     def parse(self, replay_file):
@@ -36,13 +42,13 @@ class NetworkStreamParser(object):
         #reverse_reader.read(19845)
         #print("Data: {}".format(reverse_reader.read(241).bin))
 
-        for x in range(300):
+        for x in range(400):
             print("************************************")
             print("Reading network frame {}".format(x))
             print("************************************")
             self._read_network_frame(reverse_reader)
         #self._find_candidate_frame_starts(replay_file)
-        #print(reverse_reader.read(338).bin)
+        #print(reverse_reader.read(516).bin)
         #self._read_network_frame(reverse_reader)
         #self._find_candidate_frame_starts(replay_file)
         #self._read_network_frame(reverse_reader)
@@ -170,7 +176,7 @@ class NetworkStreamParser(object):
         return team_actor_id
 
     def _read_replicated_state_index(self, reverse_reader):
-        id_lengths = [85, 90]
+        id_lengths = [85, 90, 123]
         if hasattr(self, 'replicated_state_index_reads'):
             self.replicated_state_index_reads += 1
         else:
@@ -180,7 +186,7 @@ class NetworkStreamParser(object):
         return self._read_bits(reverse_reader, id_lengths[self.replicated_state_index_reads])
 
     def _read_unique_id(self, reverse_reader):
-        id_lengths = [739, 532]
+        id_lengths = [739, 532, 739, 532]
         if hasattr(self, 'unique_ids_read'):
             self.unique_ids_read += 1
         else:

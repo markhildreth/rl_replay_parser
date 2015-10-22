@@ -8,14 +8,21 @@ class NetworkStreamParser(object):
         self.actors = {}
         self.property_read_strategies = {
             'unknown' : lambda reader: self._read_bits(reader, 100),
-            'Engine.GameReplicationInfo:GameClass': lambda reader: self._read_bits(reader, 230),
+            'Engine.GameReplicationInfo:GameClass': lambda reader: self._read_bits(reader, 33),
+            'Engine.GameReplicationInfo:ServerName': lambda reader: self._read_string(reader),
             'TAGame.GameEvent_TA:ReplicatedStateIndex': lambda reader: self._read_bits(reader, 85),
             'TAGame.Team_TA:GameEvent': lambda reader: self._read_bits(reader, 33),
             'Engine.PlayerReplicationInfo:PlayerName': lambda reader: self._read_string(reader),
-            'Engine.PlayerReplicationInfo:Team': lambda reader: self._read_bits(reader, 33),
+            'Engine.PlayerReplicationInfo:Team': lambda reader: self._read_team(reader),
             'Engine.PlayerReplicationInfo:bReadyToPlay': lambda reader: self._read_bits(reader, 1),
-            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_bits(reader, 739),
-            'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_variable_vector(reader),
+            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_unique_id(reader),
+            'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_rigid_body_state(reader),
+            #'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_bits(reader, 162),
+            'Engine.Pawn:PlayerReplicationInfo': lambda reader: self._read_bits(reader, 33),
+            'Engine.Actor:RelativeRotation': lambda reader: self._read_bits(reader, 41),
+            'TAGame.Ball_TA:GameEvent': lambda reader: self._read_bits(reader, 33),
+            'TAGame.Car_TA:TeamPaint': lambda reader: self._read_bits(reader, 88),
+            'TAGame.CarComponent_TA:Vehicle': lambda reader: self._read_bits(reader, 33),
         }
 
     def parse(self, replay_file):
@@ -26,7 +33,7 @@ class NetworkStreamParser(object):
         #print("Data: {}".format(reverse_reader.read(241).bin))
 
         self._read_network_frame(reverse_reader)
-        self._read_network_frame(reverse_reader)
+        #self._read_network_frame(reverse_reader)
 
     def _read_network_frame(self, reverse_reader):
         current_time = reverse_reader.read(32, reverse=True).floatbe
@@ -149,17 +156,33 @@ class NetworkStreamParser(object):
         results = reverse_reader.read(bits)
         return results.bin
 
+    def _read_team(self, reverse_reader):
+        unknown = reverse_reader.read(1)
+        team_actor_id = reverse_reader.read(32, reverse=True).uint
+        return team_actor_id
+
+    def _read_unique_id(self, reverse_reader):
+        id_lengths = [739, 532]
+        if hasattr(self, 'unique_ids_read'):
+            self.unique_ids_read += 1
+        else:
+            self.unique_ids_read = 0
+
+        return self._read_bits(reverse_reader, id_lengths[self.unique_ids_read])
+
     def _read_string(self, reverse_reader):
         length = reverse_reader.read(32, reverse=True).uint
         print("Length: {}".format(length))
         return ''.join([reverse_reader.read(8, reverse=True).bytes for x in range(length)][:-1])
 
     def _read_rigid_body_state(self, reverse_reader):
-        self._read_variable_vector(reverse_reader)
-        self._read_variable_vector(reverse_reader)
-        reverse_reader.read(24)
-        self._read_variable_vector(reverse_reader)
-        self._read_variable_vector(reverse_reader)
+        return (
+            self._read_bits(reverse_reader, 1),
+            self._read_variable_vector(reverse_reader),
+            self._read_bits(reverse_reader, 48),
+            self._read_variable_vector(reverse_reader),
+            self._read_variable_vector(reverse_reader),
+        )
 
     def _find_candidate_frame_starts(self, replay_file):
         last_time = 0

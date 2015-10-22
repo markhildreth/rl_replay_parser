@@ -32,11 +32,13 @@ KNOWN_ARCHETYPES = {
     ],
     'Archetypes.Ball.Ball_Default': [
         'Engine.Actor',
-        'TAGame.RBActor_TA',
         'Engine.Pawn',
+        'TAGame.RBActor_TA',
+        'TAGame.Ball_TA',
     ],
     'Archetypes.Car.Car_Default': [
         'Engine.Actor',
+        'Engine.Pawn',
         'TAGame.RBActor_TA',
         'TAGame.Vehicle_TA',
         'TAGame.Car_TA',

@@ -2,6 +2,8 @@ KNOWN_ARCHETYPES = {
     'GameInfo_Soccar.GameInfo.GameInfo_Soccar:GameReplicationInfoArchetype': [
         'Engine.Actor',
         'Engine.GameReplicationInfo',
+        'ProjectX.GRI_X',
+        'TAGame.GRI_TA',
     ],
 
     'Archetypes.GameEvent.GameEvent_SoccarSplitscreen': [
@@ -69,6 +71,22 @@ KNOWN_ARCHETYPES = {
         'TAGame.CarComponent_FlipCar_TA',
     ],
 }
+
+boosts = [
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_62',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_24',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
+]
+
+for boost in boosts:
+    KNOWN_ARCHETYPES[boost] = [
+        'Engine.Actor',
+        'TAGame.VehiclePickup_Boost_TA',
+        'TAGame.VehiclePickup_TA',
+    ]
+
+    
 
 def build_class_name_lookup(objects):
     object_name_lookup = {name: name_id for name_id, name in enumerate(objects)}

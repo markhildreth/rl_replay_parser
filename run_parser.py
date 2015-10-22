@@ -10,4 +10,4 @@ if __name__ == '__main__':
 
     with open(filename, 'rb') as replay_file:
         results = ReplayParser().parse(replay_file)
-        pprint.pprint(results)
+        #pprint.pprint(results)

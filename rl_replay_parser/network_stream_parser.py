@@ -17,7 +17,6 @@ class NetworkStreamParser(object):
             'Engine.PlayerReplicationInfo:bReadyToPlay': lambda reader: self._read_bits(reader, 1),
             'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_unique_id(reader),
             'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_rigid_body_state(reader),
-            #'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_bits(reader, 162),
             'Engine.Pawn:PlayerReplicationInfo': lambda reader: self._read_bits(reader, 33),
             'Engine.Actor:RelativeRotation': lambda reader: self._read_bits(reader, 41),
             'TAGame.Ball_TA:GameEvent': lambda reader: self._read_bits(reader, 33),
@@ -33,7 +32,6 @@ class NetworkStreamParser(object):
         #print("Data: {}".format(reverse_reader.read(241).bin))
 
         self._read_network_frame(reverse_reader)
-        #self._read_network_frame(reverse_reader)
 
     def _read_network_frame(self, reverse_reader):
         current_time = reverse_reader.read(32, reverse=True).floatbe
@@ -81,12 +79,6 @@ class NetworkStreamParser(object):
 
         vector = self._read_variable_vector(reverse_reader)
         print("Vector: {}".format(vector))
-        #if type_id in [44, 70, 79, 80, 180]:
-        #    vector = self._read_vector(reverse_reader, 5)
-        #    print("Vector: {}".format(vector))
-        #elif type_id in [124, 189, 201, 203, 205, 208, 212]:
-        #    vector = self._read_vector(reverse_reader, 4)
-        #    print("Vector: {}".format(vector))
 
         if class_name in ['Archetypes.Ball.Ball_Default', 'Archetypes.Car.Car_Default']:
             rotator = self._read_rotator(reverse_reader)
@@ -135,7 +127,6 @@ class NetworkStreamParser(object):
         actor_class_name = self.actors[actor_id]
         print("Reading properties for {}".format(actor_class_name))
 
-        pprint.pprint(self.property_name_lookup[actor_class_name])
         max_property = max(self.property_name_lookup[actor_class_name].keys())
         while True:
             another_property = reverse_reader.read(1).bool

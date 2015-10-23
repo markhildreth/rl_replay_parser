@@ -3,7 +3,7 @@ import pprint
 
 import bitstring
 
-from .utils import build_class_name_lookup, build_property_name_lookup
+from .utils import build_property_name_lookup
 from .network_stream_parser import NetworkStreamParser
 
 BOOL = 'bool'
@@ -39,12 +39,12 @@ class ReplayParser:
         data['class_index'] = self._read_class_index(replay_file)
         data['class_net_cache'] = self._read_class_net_cache(replay_file)
 
-        class_name_lookup = build_class_name_lookup(data['objects'])
-        property_name_lookup = build_property_name_lookup(data['objects'], data['class_net_cache'])
+        object_name_lookup = dict(enumerate(data['objects']))
+        property_name_lookup = build_property_name_lookup(object_name_lookup, data['class_net_cache'])
 
         number_of_frames = data['header']['NumFrames']
         replay_file.bytepos = network_stream_location
-        network_stream_parser = NetworkStreamParser(class_name_lookup, property_name_lookup)
+        network_stream_parser = NetworkStreamParser(object_name_lookup, property_name_lookup)
         network_stream_parser.parse(replay_file, number_of_frames)
 
         return data

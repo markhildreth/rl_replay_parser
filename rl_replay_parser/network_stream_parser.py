@@ -1,11 +1,12 @@
 import pprint
 from .reverse_bit_reader import ReverseBitReader
 
+class UnknownObjectError(Exception): pass
+
 class NetworkStreamParser(object):
-    def __init__(self, class_name_lookup, property_name_lookup):
-        self.class_name_lookup = class_name_lookup
+    def __init__(self, object_name_lookup, property_name_lookup):
+        self.object_name_lookup = object_name_lookup
         self.property_name_lookup = property_name_lookup
-        pprint.pprint(self.property_name_lookup)
         self.actors = {}
         self.property_read_strategies = {
             'unknown' : lambda reader: self._read_bits(reader, 100),
@@ -44,12 +45,12 @@ class NetworkStreamParser(object):
             'TAGame.GameEvent_Soccar_TA:RoundNum': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.GameEvent_Soccar_TA:ReplicatedScoredOnTeam': lambda reader: reader.read(8, reverse=True).uint,
             'Engine.TeamInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
-
             'TAGame.PRI_TA:CameraSettings': lambda reader: reader.read(431).bin,
             'TAGame.PRI_TA:ReplicatedGameEvent': lambda reader: reader.read(33).bin,
             'TAGame.PRI_TA:bUsingSecondaryCamera': lambda reader: reader.read(1).bool,
             'TAGame.PRI_TA:bIsInSplitScreen': lambda reader: reader.read(1).bool,
             'TAGame.PRI_TA:ClientLoadout': lambda reader: self._read_client_loadout(reader),
+            'TAGame.GameEvent_Soccar_TA:ReplicatedMusicStinger': lambda reader: reader.read(100).bin,
         }
 
     def parse(self, replay_file, number_of_frames):
@@ -113,7 +114,8 @@ class NetworkStreamParser(object):
         print("Unknown Bit: {}".format(unknown))
 
         type_id = reverse_reader.read(8, reverse=True).uint
-        class_name = self.class_name_lookup[type_id]
+        class_name = self.object_name_lookup[type_id]
+
         self.actors[actor_id] = class_name
         print("Type ID: {} ({})".format(type_id, class_name))
 
@@ -171,9 +173,14 @@ class NetworkStreamParser(object):
 
     def _read_network_frame_actor_existing(self, actor_id, reverse_reader):
         actor_class_name = self.actors[actor_id]
-        print("Reading properties for {}".format(actor_class_name))
+        print("Reading properties for '{}'".format(actor_class_name))
 
-        max_property = max(self.property_name_lookup[actor_class_name].keys())
+        try:
+            property_lookup = self.property_name_lookup[actor_class_name]
+        except KeyError:
+            raise UnknownObjectError('Parser does not know about archetype "{}"'.format(actor_class_name))
+
+        max_property = max(property_lookup.keys())
         while True:
             another_property = reverse_reader.read(1).bool
             print("Another property?: {}".format(another_property))
@@ -183,10 +190,14 @@ class NetworkStreamParser(object):
 
             net_property_id = self._read_serialized_int(reverse_reader, max_value=max_property)
             print("Network Property ID: {}".format(net_property_id))
-            property_name = self.property_name_lookup[actor_class_name][net_property_id]
+            property_name = property_lookup[net_property_id]
             print("Property Name: {}".format(property_name))
 
-            value = self.property_read_strategies[property_name](reverse_reader)
+            try:
+                read_strategy = self.property_read_strategies[property_name]
+            except KeyError:
+                raise UnknownObjectError('Parser does not know how to parse property "{}"'.format(property_name))
+            value = read_strategy(reverse_reader)
             print("Value: {}".format(value))
 
     def _read_bits(self, reverse_reader, bits):

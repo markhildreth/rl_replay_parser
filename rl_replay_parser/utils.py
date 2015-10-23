@@ -76,6 +76,7 @@ boosts = [
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_24',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_54',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_58',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_62',
@@ -88,22 +89,7 @@ for boost in boosts:
         'TAGame.VehiclePickup_TA',
     ]
 
-def build_class_name_lookup(objects):
-    object_name_lookup = {name: name_id for name_id, name in enumerate(objects)}
-
-    results = {}
-    for class_name in KNOWN_ARCHETYPES.keys():
-        try:
-            object_id = object_name_lookup[class_name]
-            results[object_id] = class_name
-        except KeyError:
-            pass
-
-
-    return results
-
-def build_property_name_lookup(objects, class_net_cache):
-    object_name_lookup = dict(enumerate(objects))
+def build_property_name_lookup(object_name_lookup, class_net_cache):
     object_id_lookup = _build_reverse_lookup(object_name_lookup)
     
     results = {}

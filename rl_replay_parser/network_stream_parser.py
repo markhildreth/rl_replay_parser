@@ -16,7 +16,10 @@ class NetworkStreamParser(object):
             'Engine.PlayerReplicationInfo:PlayerName': lambda reader: self._read_string(reader),
             'Engine.PlayerReplicationInfo:Team': lambda reader: self._read_team(reader),
             'Engine.PlayerReplicationInfo:bReadyToPlay': lambda reader: self._read_bits(reader, 1),
+            #'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_bits(reader, 80),
             'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_unique_id(reader),
+            'Engine.PlayerReplicationInfo:PlayerID': lambda reader: self._read_bits(reader, 71),
+            'TAGame.PRI_TA:PartyLeader': lambda reader: self._read_bits(reader, 80),
             'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_rigid_body_state(reader),
             'Engine.Pawn:PlayerReplicationInfo': lambda reader: self._read_bits(reader, 33),
             'TAGame.Ball_TA:GameEvent': lambda reader: self._read_bits(reader, 33),
@@ -33,22 +36,37 @@ class NetworkStreamParser(object):
             'TAGame.PRI_TA:MatchScore': lambda reader: self._read_bits(reader, 32),
             'TAGame.PRI_TA:MatchShots': lambda reader: self._read_bits(reader, 32),
             'TAGame.Ball_TA:HitTeamNum': lambda reader: self._read_bits(reader, 8),
+            'Engine.Actor:bCollideActors': lambda reader: self._read_bits(reader, 1),
+            'Engine.Actor:bBlockActors': lambda reader: self._read_bits(reader, 1),
+            'Engine.Actor:bBlockActors': lambda reader: self._read_bits(reader, 1),
+            'Engine.PlayerReplicationInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.PRI_TA:MatchGoals': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.Ball_TA:ReplicatedExplosionData': lambda reader: self._read_bits(reader, 79),
+            'TAGame.GameEvent_Team_TA:MaxTeamSize': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.GameEvent_Soccar_TA:RoundNum': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.GameEvent_Soccar_TA:ReplicatedScoredOnTeam': lambda reader: reader.read(8, reverse=True).uint,
+            'Engine.TeamInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.PRI_TA:TotalXP': lambda reader: reader.read(128, reverse=True).uint,
+            'TAGame.PRI_TA:bBusy': lambda reader: reader.read(1).bool,
+            'TAGame.PRI_TA:bReady': lambda reader: reader.read(1).bool,
+            'TAGame.PRI_TA:CameraSettings': lambda reader: reader.read(1000).bin,
         }
 
-    def parse(self, replay_file):
+    def parse(self, replay_file, number_of_frames):
         reverse_reader = ReverseBitReader(replay_file)
         #self._find_candidate_frame_starts(replay_file)
         #print(reverse_reader.read(4953).bin)
         #reverse_reader.read(19845)
         #print("Data: {}".format(reverse_reader.read(241).bin))
 
-        for x in range(400):
+        for x in range(number_of_frames):
             print("************************************")
             print("Reading network frame {}".format(x))
             print("************************************")
             self._read_network_frame(reverse_reader)
+
         #self._find_candidate_frame_starts(replay_file)
-        #print(reverse_reader.read(516).bin)
+        #print(reverse_reader.read(676).bin)
         #self._read_network_frame(reverse_reader)
         #self._find_candidate_frame_starts(replay_file)
         #self._read_network_frame(reverse_reader)
@@ -77,6 +95,11 @@ class NetworkStreamParser(object):
 
         channel_open = reverse_reader.read(1).bool
         print("Channel Open: {}".format(channel_open))
+
+        if not channel_open:
+            del self.actors[actor_id]
+            return
+
         new_actor = reverse_reader.read(1).bool
         print("New Actor: {}".format(new_actor))
 
@@ -176,7 +199,8 @@ class NetworkStreamParser(object):
         return team_actor_id
 
     def _read_replicated_state_index(self, reverse_reader):
-        id_lengths = [85, 90, 123]
+        return reverse_reader.read(8, reverse=True).uint
+        id_lengths = [85, 90, 123, 75]
         if hasattr(self, 'replicated_state_index_reads'):
             self.replicated_state_index_reads += 1
         else:
@@ -186,13 +210,13 @@ class NetworkStreamParser(object):
         return self._read_bits(reverse_reader, id_lengths[self.replicated_state_index_reads])
 
     def _read_unique_id(self, reverse_reader):
-        id_lengths = [739, 532, 739, 532]
+        id_lengths = [739, 532]
         if hasattr(self, 'unique_ids_read'):
             self.unique_ids_read += 1
         else:
             self.unique_ids_read = 0
 
-        return self._read_bits(reverse_reader, id_lengths[self.unique_ids_read])
+        return self._read_bits(reverse_reader, id_lengths[self.unique_ids_read % 2])
 
     def _read_string(self, reverse_reader):
         length = reverse_reader.read(32, reverse=True).uint

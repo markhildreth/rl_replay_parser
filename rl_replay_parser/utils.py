@@ -77,6 +77,7 @@ boosts = [
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_24',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_58',
 ]
 
 for boost in boosts:

@@ -73,11 +73,12 @@ KNOWN_ARCHETYPES = {
 }
 
 boosts = [
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_62',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_24',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
     'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_58',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_62',
 ]
 
 for boost in boosts:
@@ -92,8 +93,12 @@ def build_class_name_lookup(objects):
 
     results = {}
     for class_name in KNOWN_ARCHETYPES.keys():
-        object_id = object_name_lookup[class_name]
-        results[object_id] = class_name
+        try:
+            object_id = object_name_lookup[class_name]
+            results[object_id] = class_name
+        except KeyError:
+            pass
+
 
     return results
 

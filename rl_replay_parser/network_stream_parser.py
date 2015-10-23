@@ -16,8 +16,7 @@ class NetworkStreamParser(object):
             'Engine.PlayerReplicationInfo:PlayerName': lambda reader: self._read_string(reader),
             'Engine.PlayerReplicationInfo:Team': lambda reader: self._read_team(reader),
             'Engine.PlayerReplicationInfo:bReadyToPlay': lambda reader: self._read_bits(reader, 1),
-            #'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_bits(reader, 80),
-            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_unique_id(reader),
+            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_bits(reader, 80),
             'Engine.PlayerReplicationInfo:PlayerID': lambda reader: self._read_bits(reader, 71),
             'TAGame.PRI_TA:PartyLeader': lambda reader: self._read_bits(reader, 80),
             'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_rigid_body_state(reader),
@@ -38,7 +37,6 @@ class NetworkStreamParser(object):
             'TAGame.Ball_TA:HitTeamNum': lambda reader: self._read_bits(reader, 8),
             'Engine.Actor:bCollideActors': lambda reader: self._read_bits(reader, 1),
             'Engine.Actor:bBlockActors': lambda reader: self._read_bits(reader, 1),
-            'Engine.Actor:bBlockActors': lambda reader: self._read_bits(reader, 1),
             'Engine.PlayerReplicationInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.PRI_TA:MatchGoals': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.Ball_TA:ReplicatedExplosionData': lambda reader: self._read_bits(reader, 79),
@@ -46,10 +44,12 @@ class NetworkStreamParser(object):
             'TAGame.GameEvent_Soccar_TA:RoundNum': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.GameEvent_Soccar_TA:ReplicatedScoredOnTeam': lambda reader: reader.read(8, reverse=True).uint,
             'Engine.TeamInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
-            'TAGame.PRI_TA:TotalXP': lambda reader: reader.read(128, reverse=True).uint,
-            'TAGame.PRI_TA:bBusy': lambda reader: reader.read(1).bool,
-            'TAGame.PRI_TA:bReady': lambda reader: reader.read(1).bool,
-            'TAGame.PRI_TA:CameraSettings': lambda reader: reader.read(1000).bin,
+
+            'TAGame.PRI_TA:CameraSettings': lambda reader: reader.read(431).bin,
+            'TAGame.PRI_TA:ReplicatedGameEvent': lambda reader: reader.read(33).bin,
+            'TAGame.PRI_TA:bUsingSecondaryCamera': lambda reader: reader.read(1).bool,
+            'TAGame.PRI_TA:bIsInSplitScreen': lambda reader: reader.read(1).bool,
+            'TAGame.PRI_TA:ClientLoadout': lambda reader: self._read_client_loadout(reader),
         }
 
     def parse(self, replay_file, number_of_frames):
@@ -209,15 +209,6 @@ class NetworkStreamParser(object):
         print("State index reads: {}".format(self.replicated_state_index_reads))
         return self._read_bits(reverse_reader, id_lengths[self.replicated_state_index_reads])
 
-    def _read_unique_id(self, reverse_reader):
-        id_lengths = [739, 532]
-        if hasattr(self, 'unique_ids_read'):
-            self.unique_ids_read += 1
-        else:
-            self.unique_ids_read = 0
-
-        return self._read_bits(reverse_reader, id_lengths[self.unique_ids_read % 2])
-
     def _read_string(self, reverse_reader):
         length = reverse_reader.read(32, reverse=True).uint
         print("Length: {}".format(length))
@@ -237,6 +228,18 @@ class NetworkStreamParser(object):
                 self._read_variable_vector(reverse_reader),
                 self._read_variable_vector(reverse_reader),
             )
+
+    def _read_client_loadout(self, reverse_reader):
+        unknown = reverse_reader.read(8, reverse=True).uint
+        return (
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+            reverse_reader.read(32, reverse=True).uint,
+        )
 
     def _find_candidate_frame_starts(self, replay_file):
         last_time = 0

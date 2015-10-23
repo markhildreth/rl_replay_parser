@@ -14,6 +14,14 @@ KNOWN_ARCHETYPES = {
         'TAGame.GameEvent_SoccarPrivate_TA',
         'TAGame.GameEvent_SoccarSplitscreen_TA',
     ],
+
+    'Archetypes.GameEvent.GameEvent_Soccar': [
+        'Engine.Actor',
+        'TAGame.GameEvent_TA',
+        'TAGame.GameEvent_Team_TA',
+        'TAGame.GameEvent_Soccar_TA',
+    ],
+
     'Archetypes.Teams.Team0': [
         'Engine.Actor',
         'Engine.TeamInfo',
@@ -70,17 +78,25 @@ KNOWN_ARCHETYPES = {
         'TAGame.CarComponent_TA',
         'TAGame.CarComponent_FlipCar_TA',
     ],
+    'eurostad_oob_audio_map.TheWorld:PersistentLevel.CrowdActor_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdActor_TA',
+    ],
+    'eurostad_oob_audio_map.TheWorld:PersistentLevel.CrowdManager_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdManager_TA',
+    ],
 }
 
+# TODO: Perhaps we should be more explicit here.
 boosts = [
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_24',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_46',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_54',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_58',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_60',
-    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_62',
+    'trainstation_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
+    for x in range(100)
 ]
+boosts.extend([
+    'eurostadium_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
+    for x in range(100)
+])
 
 for boost in boosts:
     KNOWN_ARCHETYPES[boost] = [
@@ -96,7 +112,11 @@ def build_property_name_lookup(object_name_lookup, class_net_cache):
     for archetype_name, known_class_types in KNOWN_ARCHETYPES.items():
         results[archetype_name] = {}
         for known_class_type in known_class_types:
-            class_id = object_id_lookup[known_class_type]
+            try:
+                class_id = object_id_lookup[known_class_type]
+            except KeyError:
+                continue
+
             properties = class_net_cache[class_id]['properties']
             for property_net_id, property_id in properties.items():
                 results[archetype_name][property_net_id] = object_name_lookup[property_id]

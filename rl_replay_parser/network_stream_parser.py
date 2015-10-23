@@ -6,6 +6,8 @@ class UnknownObjectError(Exception): pass
 class NetworkStreamParser(object):
     def __init__(self, object_name_lookup, property_name_lookup):
         self.object_name_lookup = object_name_lookup
+        pprint.pprint(object_name_lookup)
+        pprint.pprint(property_name_lookup)
         self.property_name_lookup = property_name_lookup
         self.actors = {}
         self.property_read_strategies = {
@@ -26,7 +28,7 @@ class NetworkStreamParser(object):
             'TAGame.Car_TA:TeamPaint': lambda reader: self._read_bits(reader, 88),
             'TAGame.CarComponent_TA:Vehicle': lambda reader: self._read_bits(reader, 33),
             'TAGame.GameEvent_TA:ReplicatedGameStateTimeRemaining': lambda reader: self._read_bits(reader, 32),
-            'ProjectX.GRI_X:bGameStarted': lambda reader: self._read_bits(reader, 1),
+            'ProjectX.GRI_X:bGameStarted': lambda reader: reader.read(1).bool,
             'ProjectX.GRI_X:ReplicatedGamePlaylist': lambda reader: self._read_bits(reader, 32),
             'TAGame.Vehicle_TA:ReplicatedThrottle': lambda reader: self._read_bits(reader, 8),
             'TAGame.VehiclePickup_TA:ReplicatedPickupData': lambda reader: self._read_bits(reader, 34),
@@ -51,6 +53,17 @@ class NetworkStreamParser(object):
             'TAGame.PRI_TA:bIsInSplitScreen': lambda reader: reader.read(1).bool,
             'TAGame.PRI_TA:ClientLoadout': lambda reader: self._read_client_loadout(reader),
             'TAGame.GameEvent_Soccar_TA:ReplicatedMusicStinger': lambda reader: reader.read(100).bin,
+            'TAGame.Vehicle_TA:ReplicatedSteer': lambda reader: reader.read(8, reverse=True).int,
+            'TAGame.CarComponent_Dodge_TA:DodgeTorque': lambda reader: self._read_variable_vector(reader),
+            'Engine.PlayerReplicationInfo:Ping': lambda reader: reader.read(8, reverse=True).uint,
+            'ProjectX.GRI_X:GameServerID': lambda reader: reader.read(64).bin,
+            'ProjectX.GRI_X:Reservations': lambda reader: reader.read(14).bin,
+            'Engine.Actor:DrawScale': lambda reader: reader.read(32).bin,
+            'TAGame.CrowdActor_TA:ReplicatedOneShotSound': lambda reader: reader.read(33).bin,
+            'TAGame.CrowdActor_TA:ModifiedNoise': lambda reader: reader.read(32).bin,
+            'TAGame.CrowdActor_TA:GameEvent': lambda reader: reader.read(33).bin,
+            'TAGame.CrowdManager_TA:GameEvent': lambda reader: reader.read(33).bin,
+            'TAGame.CrowdActor_TA:ReplicatedCountDownNumber': lambda reader: reader.read(32).bin,
         }
 
     def parse(self, replay_file, number_of_frames):
@@ -60,6 +73,7 @@ class NetworkStreamParser(object):
         #reverse_reader.read(19845)
         #print("Data: {}".format(reverse_reader.read(241).bin))
 
+        #number_of_frames = 1665
         for x in range(number_of_frames):
             print("************************************")
             print("Reading network frame {}".format(x))
@@ -67,7 +81,7 @@ class NetworkStreamParser(object):
             self._read_network_frame(reverse_reader)
 
         #self._find_candidate_frame_starts(replay_file)
-        #print(reverse_reader.read(676).bin)
+        #print(reverse_reader.read(1041).bin)
         #self._read_network_frame(reverse_reader)
         #self._find_candidate_frame_starts(replay_file)
         #self._read_network_frame(reverse_reader)

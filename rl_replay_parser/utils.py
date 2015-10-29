@@ -86,6 +86,22 @@ KNOWN_ARCHETYPES = {
         'Engine.Actor',
         'TAGame.CrowdManager_TA',
     ],
+    'stadium_oob_audio_map.TheWorld:PersistentLevel.CrowdActor_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdActor_TA',
+    ],
+    'stadium_oob_audio_map.TheWorld:PersistentLevel.CrowdManager_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdManager_TA',
+    ],
+    'park_sfx.TheWorld:PersistentLevel.CrowdActor_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdActor_TA',
+    ],
+    'park_sfx.TheWorld:PersistentLevel.CrowdManager_TA_0': [
+        'Engine.Actor',
+        'TAGame.CrowdManager_TA',
+    ],
 }
 
 # TODO: Perhaps we should be more explicit here.
@@ -95,6 +111,21 @@ boosts = [
 ]
 boosts.extend([
     'eurostadium_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
+    for x in range(100)
+])
+
+boosts.extend([
+    'stadium_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
+    for x in range(100)
+])
+
+boosts.extend([
+    'Park_Night_P.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
+    for x in range(100)
+])
+
+boosts.extend([
+    'park_p.TheWorld:PersistentLevel.VehiclePickup_Boost_TA_{}'.format(x)
     for x in range(100)
 ])
 

@@ -19,9 +19,9 @@ class NetworkStreamParser(object):
             'Engine.PlayerReplicationInfo:PlayerName': lambda reader: self._read_string(reader),
             'Engine.PlayerReplicationInfo:Team': lambda reader: self._read_team(reader),
             'Engine.PlayerReplicationInfo:bReadyToPlay': lambda reader: self._read_bits(reader, 1),
-            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_bits(reader, 80),
+            'Engine.PlayerReplicationInfo:UniqueId': lambda reader: self._read_unique_id(reader),
             'Engine.PlayerReplicationInfo:PlayerID': lambda reader: self._read_bits(reader, 71),
-            'TAGame.PRI_TA:PartyLeader': lambda reader: self._read_bits(reader, 80),
+            'TAGame.PRI_TA:PartyLeader': lambda reader: self._read_unique_id(reader),
             'TAGame.RBActor_TA:ReplicatedRBState': lambda reader: self._read_rigid_body_state(reader),
             'Engine.Pawn:PlayerReplicationInfo': lambda reader: self._read_nullable_int(reader),
             'TAGame.Ball_TA:GameEvent': lambda reader: self._read_bits(reader, 33),
@@ -42,6 +42,8 @@ class NetworkStreamParser(object):
             'Engine.Actor:bBlockActors': lambda reader: reader.read(1).bool,
             'Engine.PlayerReplicationInfo:Score': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.PRI_TA:MatchGoals': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.PRI_TA:MatchAssists': lambda reader: reader.read(32, reverse=True).uint,
+            'TAGame.PRI_TA:MatchSaves': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.Ball_TA:ReplicatedExplosionData': lambda reader: self._read_bits(reader, 79),
             'TAGame.GameEvent_Team_TA:MaxTeamSize': lambda reader: reader.read(32, reverse=True).uint,
             'TAGame.GameEvent_Soccar_TA:RoundNum': lambda reader: reader.read(32, reverse=True).uint,
@@ -52,12 +54,11 @@ class NetworkStreamParser(object):
             'TAGame.PRI_TA:bUsingSecondaryCamera': lambda reader: reader.read(1).bool,
             'TAGame.PRI_TA:bIsInSplitScreen': lambda reader: reader.read(1).bool,
             'TAGame.PRI_TA:ClientLoadout': lambda reader: self._read_client_loadout(reader),
-            'TAGame.GameEvent_Soccar_TA:ReplicatedMusicStinger': lambda reader: reader.read(100).bin,
             'TAGame.Vehicle_TA:ReplicatedSteer': lambda reader: reader.read(8, reverse=True).int,
             'TAGame.CarComponent_Dodge_TA:DodgeTorque': lambda reader: self._read_variable_vector(reader),
             'Engine.PlayerReplicationInfo:Ping': lambda reader: reader.read(8, reverse=True).uint,
             'ProjectX.GRI_X:GameServerID': lambda reader: reader.read(64).bin,
-            'ProjectX.GRI_X:Reservations': lambda reader: reader.read(14).bin,
+            'ProjectX.GRI_X:Reservations': lambda reader: self._read_reservations(reader),
             'Engine.Actor:DrawScale': lambda reader: reader.read(32).bin,
             'TAGame.CrowdActor_TA:ReplicatedOneShotSound': lambda reader: reader.read(33).bin,
             'TAGame.CrowdActor_TA:ModifiedNoise': lambda reader: reader.read(32).bin,
@@ -71,6 +72,12 @@ class NetworkStreamParser(object):
             'Engine.Actor:bHidden': lambda reader: reader.read(1).bool,
             'TAGame.Car_TA:ReplicatedDemolish': lambda reader: self._read_replicated_demolish(reader),
             'TAGame.PRI_TA:bUsingBehindView': lambda reader: reader.read(1).bool,
+            'Engine.PlayerReplicationInfo:bWaitingPlayer': lambda reader: reader.read(1).bool,
+            'TAGame.RBActor_TA:bReplayActor': lambda reader: reader.read(1).bool,
+            'TAGame.CarComponent_FlipCar_TA:bFlipRight': lambda reader: reader.read(1).bool,
+            'TAGame.CarComponent_FlipCar_TA:FlipCarTime': lambda reader: reader.read(32).uint,
+            'TAGame.GameEvent_Soccar_TA:bOverTime': lambda reader: reader.read(1).bool,
+            'TAGame.GameEvent_Soccar_TA:ReplicatedMusicStinger': lambda reader: reader.read(41).bin,
         }
 
     def parse(self, replay_file, number_of_frames):
@@ -140,16 +147,13 @@ class NetworkStreamParser(object):
         unknown = reverse_reader.read(1).bool
         print("Unknown Bit: {}".format(unknown))
 
-        type_id = reverse_reader.read(8, reverse=True).uint
+        type_id = reverse_reader.read(32, reverse=True).uint
         class_name = self.object_name_lookup[type_id]
 
         self.actors[actor_id] = class_name
         print("Type ID: {} ({})".format(type_id, class_name))
 
-        zeros = reverse_reader.read(24)
-        print("Zeros bits ({}): {}".format(zeros.length, zeros.bin))
-
-        if class_name[0].islower():
+        if 'TheWorld' in class_name:
             return
 
         vector = self._read_variable_vector(reverse_reader)
@@ -231,6 +235,36 @@ class NetworkStreamParser(object):
         results = reverse_reader.read(bits)
         return results.bin
 
+    def _read_unique_id(self, reverse_reader):
+        # I'm guessing here that this differentiates PCs and PS4s
+        system_id = reverse_reader.read(8, reverse=True).uint
+        STEAM = 1
+        PS4 = 2
+
+        if system_id == STEAM:
+            return (system_id, reverse_reader.read(72).bin)
+        elif system_id == PS4:
+            return (system_id, reverse_reader.read(264).bin)
+
+    def _read_reservations(self, reverse_reader):
+        unknown_bits = reverse_reader.read(3).bin
+        values = []
+
+        at_end = False
+
+        while not at_end:
+            unique_id = self._read_unique_id(reverse_reader)
+            name = self._read_string(reverse_reader)
+            unknown = reverse_reader.read(3).bin
+            at_end = reverse_reader.read(1).bool
+            even_more_unknown = reverse_reader.read(8).bin
+
+            values.append( (unique_id, name) )
+
+        yet_more_unknown_stuff = reverse_reader.read(29).bin
+
+        return values
+
     def _read_team(self, reverse_reader):
         unknown = reverse_reader.read(1)
         team_actor_id = reverse_reader.read(32, reverse=True).uint
@@ -243,7 +277,10 @@ class NetworkStreamParser(object):
         return (
             reverse_reader.read(66).bin,
             self._read_variable_vector(reverse_reader),
-            reverse_reader.read(20).bin,
+            reverse_reader.read(1).bin,
+            self._read_variable_vector(reverse_reader),
+            reverse_reader.read(5).bin,
+            #reverse_reader.read(20).bin,
         )
 
     def _read_string(self, reverse_reader):
